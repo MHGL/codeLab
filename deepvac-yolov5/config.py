@@ -1,4 +1,12 @@
+#! /usr/bin/python3
 # -*- coding:utf-8 -*-
+'''
+@Author     : __MHGL__
+@Data       : 2021/01/05
+@Desciption : deepvac yolov5 config, include config, aug, train, val, test, loss
+'''
+
+
 import sys
 sys.path.append("/home/liyang/GitHub/codeLab/deepvac/")
 
@@ -16,7 +24,6 @@ config.lr_factor = 0.1
 config.nesterov = False
 config.weight_decay = 3e-4
 config.device = 'cuda'
-config.gr = 1.0  # iou loss ratio (obj_loss = 1.0 or iou)
 config.img_size = 416
 config.num_classes = 4
 config.strides = [8, 16, 32]
@@ -26,6 +33,18 @@ config.model_file = "modules/yolo.json"
 config.model_path = "output/yolov5l.update.pth"
 # config.script_model_dir = f"output/{config.model_type}.torchscript.pt"
 # if you want to export model to torchscript, make model.is_training = False first;
+
+# # # loss # # #
+config.loss = AttrDict()
+config.loss.gr = 1.0  # iou loss ratio (obj_loss = 1.0 or iou)
+config.loss.box = 0.05
+config.loss.cls = 0.5
+config.loss.cls_pw = 1
+config.loss.obj = 1
+config.loss.obj_pw = 1
+config.loss.iou_t = 0.2
+config.loss.anchor_t = 4
+config.loss.fl_gamma = 0
 
 # # # aug # # #
 config.aug = AttrDict()
