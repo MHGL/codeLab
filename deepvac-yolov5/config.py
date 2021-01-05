@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 import sys
-sys.path.append("../deepvac/")
+sys.path.append("/home/liyang/GitHub/codeLab/deepvac/")
+
 from deepvac.syszux_config import *
 
 
@@ -40,15 +41,16 @@ config.aug.flipud = 0.0
 config.aug.fliplr = 0.5
 config.aug.mosaic = 1.0
 config.aug.mixup = 0.0
-config.boader = [0, 0] if not config.aug.mosaic else [-config.img_size // 2] * 2
+config.aug.border = [0, 0] if not config.aug.mosaic else [-config.img_size // 2] * 2
 
 # # # train # # #
 config.train = AttrDict()
 config.train.shuffle = True
 config.train.batch_size = 20
 config.train.augment = config.aug
-config.train.root = "/gemfield/hostpv/PornCocoDataset/train"
-config.train.annotations = "/gemfield/hostpv/PornCocoDataset/train.json"
+config.train.img_size = config.img_size
+config.train.root = "/home/liyang/ai05/PornNewDataset/train"
+config.train.annotation = "/home/liyang/ai05/PornNewDataset/train.json"
 
 # # # val # # #
 config.val = AttrDict()

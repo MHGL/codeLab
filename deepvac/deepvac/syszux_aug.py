@@ -6,11 +6,12 @@ import numpy as np
 import random
 from PIL import Image, ImageEnhance
 from scipy import ndimage
-from torch._C import R
+# from torch._C import R
 from .syszux_helper import WarpMLS, apply_perspective_transform, Remaper, Liner, apply_emboss, reverse_img
 
 class AugBase(object):
     def __init__(self, deepvac_config):
+        self.conf = deepvac_config
         self.auditConfig()
 
     def auditConfig(self):
@@ -637,7 +638,6 @@ class TextRendererReverseAug(AugBase):
 class HSVAug(AugBase):
     def __init__(self, deepvac_config):
         super(HSVAug, self).__init__(deepvac_config)
-        self.conf = deepvac_config
 
     def auditConfig(self):
         pass
@@ -660,7 +660,6 @@ class HSVAug(AugBase):
 class RandomPerspectiveAug(AugBase):
     def __init__(self, deepvac_config):
         super(RandomPerspectiveAug, self).__init__(deepvac_config)
-        self.conf = deepvac_config
 
     def auditConfig(self):
         # Perspective
@@ -739,7 +738,6 @@ class RandomPerspectiveAug(AugBase):
 class FlipAug(AugBase):
     def __init__(self, deepvac_config):
         super(FlipAug, self).__init__(deepvac_config)
-        self.conf = deepvac_config
 
     def auditConfig(self):
         self.flipud = self.conf.flipud
@@ -760,7 +758,6 @@ class FlipAug(AugBase):
 class CutoutAug(AugBase):
     def __init__(self, deepvac_config):
         super(CutoutAug, self).__init__(deepvac_config)
-        self.conf = deepvac_config
 
     def auditConfig(self):
         pass
