@@ -17,8 +17,8 @@ import numpy as np
 
 from PIL import Image
 from config import config
-from deepvac.syszux_executor import YoloAugExecutor
 from torchvision.datasets.vision import VisionDataset
+from deepvac.syszux_aug import HSVAug, RandomPerspectiveAug, FlipAug
 
 
 class CocoDataset(VisionDataset):
@@ -74,14 +74,19 @@ class CocoDetectionDataset(CocoDataset):
         y[:, 2] = x[:, 2] - x[:, 0] 
         y[:, 3] = x[:, 3] - x[:, 1] 
         return y
+
+    def _normalize_hw(self, img, labels):
+        nL = len(labels)
+        if nL:
+            labels[:, 1:5] = self._xyxy2xywh(labels[:, 1:5]) 
+            labels[:, [2, 4]] /= img.shape[0] 
+            labels[:, [1, 3]] /= img.shape[1] 
+        return img, labels
     
     def _convert_tensor(self, img, labels):
         nL = len(labels)
         labels_out = torch.zeros((nL, 6))
         if nL:
-            labels[:, 1:5] = self._xyxy2xywh(labels[:, 1:5]) 
-            labels[:, [2, 4]] /= img.shape[0] 
-            labels[:, [1, 3]] /= img.shape[1] 
             labels_out[:, 1:] = torch.from_numpy(labels)
         img = img[:, :, ::-1].transpose(2, 0, 1) 
         img = np.ascontiguousarray(img)
@@ -91,8 +96,8 @@ class CocoDetectionDataset(CocoDataset):
     def __getitem__(self, index):
         img = self._load_image(index)
         anns = self._load_anns(index)
-        img, target = self._convert_tensor(img, anns)
-        return img, target
+        img, target = self._normalize_hw(img, anns)
+        return self._convert_tensor(img, target)
 
     @staticmethod
     def collate_fn(batch):
@@ -104,8 +109,10 @@ class CocoDetectionDataset(CocoDataset):
 
 class Yolov5Dataset(CocoDetectionDataset):
     def __init__(self, deepvac_config):
-        self.yolo_aug_executor = YoloAugExecutor(deepvac_config.augment)
         super(Yolov5Dataset, self).__init__(deepvac_config)
+        self.hsv_aug = HSVAug(self.conf.augment)
+        self.flip_aug = FlipAug(self.conf.augment)
+        self.random_perspective_aug = RandomPerspectiveAug(self.conf.augment)
 
     def _letterbox(self, img, new_shape, color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True):
         shape = img.shape[:2] 
@@ -132,26 +139,35 @@ class Yolov5Dataset(CocoDetectionDataset):
         img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  
         return img, ratio, (dw, dh)
 
+    def _convert_tensor_with_aug(self, img, labels):
+        if self.conf.augment:
+            if not self.conf.augment.mosaic:
+                img, labels = self.random_perspective_aug(img, labels)
+            self.hsv_aug(img)
+        img, labels = self._normalize_hw(img, labels)
+        if self.conf.augment:
+            img, labels = self.flip_aug(img, labels)
+        return self._convert_tensor(img, labels)
+
     def __getitem__(self, index):
         # # # image # # # 
         img = self._load_image(index)
-        h0, w0 = img.shape[:2]
-        r = self.conf.img_size / max(h0, w0)
-        if r != 1:
+        h0, w0, _ = img.shape
+        r = self.conf.img_size / max(h0, w0) 
+        if r != 1: 
             interp = cv2.INTER_AREA if r < 1 and not self.conf.augment else cv2.INTER_LINEAR
             img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
         h, w, _ = img.shape
+        hr, wr = h / h0, w / w0
         img, ratio, pad = self._letterbox(img, self.conf.img_size, auto=False, scaleup=self.conf.augment)
         # # # annotation # # #
         labels = self._load_anns(index)
         if labels.size:
-            labels[:, 3] = ratio[0] * (labels[:, 1] + labels[:, 3]) + pad[0]
-            labels[:, 4] = ratio[1] * (labels[:, 2] + labels[:, 4]) + pad[1]
-            labels[:, 1] = ratio[0] * labels[:, 1] + pad[0] 
-            labels[:, 2] = ratio[1] * labels[:, 3] + pad[1] 
-        if self.conf.augment:
-            img, labels = self.yolo_aug_executor(img, labels)
-        return self._convert_tensor(img, labels)
+            labels[:, 3] = ratio[0] * wr * (labels[:, 1] + labels[:, 3]) + pad[0]
+            labels[:, 4] = ratio[1] * hr * (labels[:, 2] + labels[:, 4]) + pad[1]
+            labels[:, 1] = ratio[0] * wr * labels[:, 1] + pad[0] 
+            labels[:, 2] = ratio[1] * hr * labels[:, 2] + pad[1] 
+        return self._convert_tensor_with_aug(img, labels)
 
 
 class Yolov5MosaicDataset(Yolov5Dataset):
@@ -166,12 +182,13 @@ class Yolov5MosaicDataset(Yolov5Dataset):
         for i, index in enumerate(indices):
             # load image
             img = self._load_image(index)
-            h0, w0 = img.shape[:2]
-            r = self.conf.img_size / max(h0, w0)
-            if r != 1:
+            h0, w0, _ = img.shape
+            r = self.conf.img_size / max(h0, w0) 
+            if r != 1: 
                 interp = cv2.INTER_AREA if r < 1 and not self.conf.augment else cv2.INTER_LINEAR
                 img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
             h, w, _ = img.shape
+            hr, wr = h / h0, w / w0
             # load mosaic
             if i == 0: 
                 img4 = np.full((s * 2, s * 2, img.shape[2]), 114, dtype=np.uint8)  
@@ -192,26 +209,24 @@ class Yolov5MosaicDataset(Yolov5Dataset):
             # load labels
             labels = self._load_anns(index)
             if labels.size: 
-                labels[:, 3] = labels[:, 1] + labels[:, 3] + padw
-                labels[:, 4] = labels[:, 2] + labels[:, 4] + padh
-                labels[:, 1] = labels[:, 1] + padw
-                labels[:, 2] = labels[:, 2] + padh
+                labels[:, 3] = wr * (labels[:, 1] + labels[:, 3]) + padw
+                labels[:, 4] = hr * (labels[:, 2] + labels[:, 4]) + padh
+                labels[:, 1] = wr * labels[:, 1] + padw
+                labels[:, 2] = hr * labels[:, 2] + padh
                 labels4.append(labels)
         if len(labels4):
             labels4 = np.concatenate(labels4, 0)
             np.clip(labels4[:, 1:], 0, 2 * s, out=labels4[:, 1:]) 
+        img4, labels4 = self.random_perspective_aug(img4, labels4)
         return img4, labels4
 
     def __getitem__(self, index):
         img, labels = self._load_mosaic(index)
-        if self.conf.augment:
-            img, labels = self.yolo_aug_executor(img, labels)
-        return self._convert_tensor(img, labels)
+        return self._convert_tensor_with_aug(img, labels)
 
 
 if __name__ == '__main__':
-    # dataset = Yolov5MosaicDataset(config.train)
-    dataset = Yolov5Dataset(config.train)
+    dataset = Yolov5MosaicDataset(config.train)
     from torch.utils.data import DataLoader
 
 
@@ -219,4 +234,3 @@ if __name__ == '__main__':
     for img, t in loader:
         print(img.shape)
         print(t)
-        break

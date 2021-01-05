@@ -642,7 +642,7 @@ class HSVAug(AugBase):
     def auditConfig(self):
         pass
 
-    def __call__(self, img, target):
+    def __call__(self, img):
         hgain = self.conf.hgain
         sgain = self.conf.sgain
         vgain = self.conf.vgain
@@ -730,8 +730,8 @@ class RandomPerspectiveAug(AugBase):
             xy[:, [1, 3]] = xy[:, [1, 3]].clip(0, height)
             # filter candidates
             i = self._box_candidates(box1=target[:, 1:5].T * s, box2=xy.T)
-            targets = target[i]
-            targets[:, 1:5] = xy[i]
+            target = target[i]
+            target[:, 1:5] = xy[i]
         return img, target
 
 

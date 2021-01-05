@@ -144,6 +144,7 @@ class YoloAugExecutor(Executor):
             res = op(img, target)
             if res:
                 img, target = res
+                print(str(op), target)
         return img, target
 
 
