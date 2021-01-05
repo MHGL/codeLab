@@ -76,8 +76,10 @@ config.val = AttrDict()
 config.val.augment = False
 config.val.shuffle = False
 config.val.batch_size = 15
-config.val.root = "/gemfield/hostpv/PornCocoDataset/val"
-config.val.annotations = "/gemfield/hostpv/PornCocoDataset/val.json"
+config.val.root = "/home/liyang/ai05/PornNewDataset/val"
+config.val.annotation = "/home/liyang/ai05/PornNewDataset/val.json"
+# config.val.root = "/gemfield/hostpv/PornCocoDataset/val"
+# config.val.annotations = "/gemfield/hostpv/PornCocoDataset/val.json"
 
 # # # test # # #
 config.test = AttrDict()

@@ -172,7 +172,6 @@ class MultiLoss(object):
         lcls *= self.conf.cls * s
         bs = tobj.shape[0]  
         iou = sum(iou_list) / len(iou_list) if iou_list else 0
-        # loss = 0.2 * lbox + 0.5 * lobj + 0.3 * lcls
         return lbox, lobj, lcls, iou
 
 
