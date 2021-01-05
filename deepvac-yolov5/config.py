@@ -8,17 +8,16 @@
 
 
 import sys
-sys.path.append("/home/liyang/GitHub/codeLab/deepvac/")
+sys.path.append("../deepvac/")
 
 from deepvac.syszux_config import *
 
 
 # # # config # # #
-config = AttrDict()
 config.save_num = 1
 config.epoch_num = 200
 config.lr = 1e-2
-config.lr_step = 150
+config.lr_step = 70
 config.momentum = 0.9
 config.lr_factor = 0.1
 config.nesterov = False
@@ -27,7 +26,6 @@ config.device = 'cuda'
 config.img_size = 416
 config.num_classes = 4
 config.strides = [8, 16, 32]
-config.hyp = "data/hyp.json"
 config.model_type = "yolov5l"
 config.model_file = "modules/yolo.json"
 config.model_path = "output/yolov5l.update.pth"
@@ -68,18 +66,17 @@ config.train.shuffle = True
 config.train.batch_size = 20
 config.train.augment = config.aug
 config.train.img_size = config.img_size
-config.train.root = "/home/liyang/ai05/PornNewDataset/train"
-config.train.annotation = "/home/liyang/ai05/PornNewDataset/train.json"
+config.train.root = "/gemfield/hostpv/PornNewDataset/train"
+config.train.annotation = "/gemfield/hostpv/PornNewDataset/train.json"
 
 # # # val # # #
 config.val = AttrDict()
-config.val.augment = False
 config.val.shuffle = False
 config.val.batch_size = 15
-config.val.root = "/home/liyang/ai05/PornNewDataset/val"
-config.val.annotation = "/home/liyang/ai05/PornNewDataset/val.json"
-# config.val.root = "/gemfield/hostpv/PornCocoDataset/val"
-# config.val.annotations = "/gemfield/hostpv/PornCocoDataset/val.json"
+config.val.augment = config.aug
+config.val.img_size = config.img_size
+config.val.root = "/gemfield/hostpv/PornNewDataset/val"
+config.val.annotation = "/gemfield/hostpv/PornNewDataset/val.json"
 
 # # # test # # #
 config.test = AttrDict()

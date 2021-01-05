@@ -1,3 +1,5 @@
+import sys
+sys.path.append("../deepvac")
 import cv2
 import torch
 import numpy as np

@@ -9,7 +9,7 @@
 
 import os
 import sys
-sys.path.append("/home/liyang/GitHub/codeLab/deepvac")
+sys.path.append("../deepvac")
 
 from modules.model import YoloV5
 from deepvac.syszux_log import LOG
