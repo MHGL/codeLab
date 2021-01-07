@@ -79,7 +79,7 @@ class Yolov5Detection(Deepvac):
         img = self._image_process(image)
         with torch.no_grad():
             output = self.net(img)
-            print(output[0, -1])
+            print(output.shape)
         pred = self._post_process(output)
         # export torchscript
         # self.exportTorchViaScript()

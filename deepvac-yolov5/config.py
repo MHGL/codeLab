@@ -15,20 +15,20 @@ from deepvac.syszux_config import *
 
 # # # config # # #
 config.save_num = 1
-config.epoch_num = 200
-config.lr = 1e-2
-config.lr_step = 70
-config.momentum = 0.9
+config.epoch_num = 1500
+config.lr = 0.01
+config.lr_step = 1000
+config.momentum = 0.937
 config.lr_factor = 0.1
 config.nesterov = False
-config.weight_decay = 3e-4
+config.weight_decay = 5e-4
 config.device = 'cuda'
 config.img_size = 416
 config.num_classes = 4
 config.strides = [8, 16, 32]
 config.model_type = "yolov5l"
 config.model_file = "modules/yolo.json"
-config.model_path = "output/yolov5l.update.pth"
+config.model_path = "output/yolov5l_nc4.pkl"
 # config.script_model_dir = f"output/{config.model_type}.torchscript.pt"
 # if you want to export model to torchscript, make model.is_training = False first;
 
@@ -36,7 +36,7 @@ config.model_path = "output/yolov5l.update.pth"
 config.loss = AttrDict()
 config.loss.gr = 1.0  # iou loss ratio (obj_loss = 1.0 or iou)
 config.loss.box = 0.05
-config.loss.cls = 0.5
+config.loss.cls = 0.025
 config.loss.cls_pw = 1
 config.loss.obj = 1
 config.loss.obj_pw = 1
@@ -53,30 +53,29 @@ config.aug.degrees = 0.0
 config.aug.translate = 0.1
 config.aug.scale = 0.5
 config.aug.shear = 0.0
-config.aug.perspective = 0.0
 config.aug.flipud = 0.0
 config.aug.fliplr = 0.5
 config.aug.mosaic = 1.0
 config.aug.mixup = 0.0
-config.aug.border = [0, 0] if not config.aug.mosaic else [-config.img_size // 2] * 2
+config.aug.perspective = 0.0
 
 # # # train # # #
 config.train = AttrDict()
 config.train.shuffle = True
-config.train.batch_size = 20
+config.train.batch_size = 3
 config.train.augment = config.aug
 config.train.img_size = config.img_size
-config.train.root = "/gemfield/hostpv/PornNewDataset/train"
-config.train.annotation = "/gemfield/hostpv/PornNewDataset/train.json"
+config.train.root = "/gemfield/hostpv/PornNewDataset/test"
+config.train.annotation = "/gemfield/hostpv/PornNewDataset/test.json"
 
 # # # val # # #
 config.val = AttrDict()
 config.val.shuffle = False
-config.val.batch_size = 15
+config.val.batch_size = 9
 config.val.augment = config.aug
 config.val.img_size = config.img_size
-config.val.root = "/gemfield/hostpv/PornNewDataset/val"
-config.val.annotation = "/gemfield/hostpv/PornNewDataset/val.json"
+config.val.root = "/gemfield/hostpv/PornNewDataset/test"
+config.val.annotation = "/gemfield/hostpv/PornNewDataset/test.json"
 
 # # # test # # #
 config.test = AttrDict()

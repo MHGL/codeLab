@@ -15,7 +15,7 @@ from modules.model import YoloV5
 from deepvac.syszux_log import LOG
 from torch.utils.data import DataLoader
 from modules.utils_loss import MultiLoss
-from data.synthesis import Yolov5MosaicDataset
+from data.synthesis import Yolov5Dataset
 from deepvac.syszux_deepvac import DeepvacTrain
 
 
@@ -31,18 +31,18 @@ class DeepvacYolov5Train(DeepvacTrain):
         self.net.is_training = True
 
     def initTrainLoader(self):
-        self.train_dataset = Yolov5MosaicDataset(self.conf.train)
+        self.train_dataset = Yolov5Dataset(self.conf.train)
         self.train_loader = DataLoader(dataset=self.train_dataset, 
                                         batch_size=self.conf.train.batch_size,
                                         shuffle=self.conf.train.shuffle, 
                                         num_workers=os.cpu_count(),
-                                        collate_fn=Yolov5MosaicDataset.collate_fn)
+                                        collate_fn=Yolov5Dataset.collate_fn)
 
     def initValLoader(self):
-        self.val_dataset = Yolov5MosaicDataset(self.conf.val)
+        self.val_dataset = Yolov5Dataset(self.conf.val)
         self.val_loader = DataLoader(dataset=self.val_dataset, 
                                         batch_size=self.conf.val.batch_size,
-                                        collate_fn=Yolov5MosaicDataset.collate_fn)
+                                        collate_fn=Yolov5Dataset.collate_fn)
 
     def initCriterion(self):
         self.criterion = MultiLoss(self.conf)

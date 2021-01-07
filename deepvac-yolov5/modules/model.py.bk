@@ -148,15 +148,13 @@ class YoloV5(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         features = self.backbone(x)
         head_outputs = self.head(features)
-        return head_outputs
-    
-    @torch.jit.script
-    def inference(self, features: Tensor, head_outputs:List[Tensor]) -> Tensor:
+        if self.is_training:
+            return head_outputs
         anchors_tuple = self.anchor_generator(features)
         N, _, _, _, K = head_outputs[0].shape
         all_pred_logits: List[Tensor] = []
         for pred_logits in head_outputs:
-            pred_logits = pred_logits.reshape(N, -1, K)  
+            pred_logits = pred_logits.reshape(N, -1, K)  # Size=(N, HWA, K)
             all_pred_logits.append(pred_logits)
         preds = torch.cat(all_pred_logits, dim=1)
         preds = torch.sigmoid(preds)

@@ -92,16 +92,19 @@ class MultiLoss(object):
         gain = torch.ones(7, device=targets.device) 
         ai = torch.arange(na, device=targets.device).float().view(na, 1).repeat(1, nt)  
         targets = torch.cat((targets.repeat(na, 1, 1), ai[:, :, None]), 2)  
+        strides = torch.Tensor(model.strides).view(-1, 1, 1)
+        anchors = det.anchors / strides
+
         g = 0.5  
         off = torch.tensor([[0, 0],
                             [1, 0], [0, 1], [-1, 0], [0, -1],  
                             ], device=targets.device).float() * g  
         for i in range(det.nl):
-            anchors = det.anchors[i].to(targets.device)
+            anchor = anchors[i].to(targets.device)
             gain[2:6] = torch.tensor(preds[i].shape)[[3, 2, 3, 2]] 
             t = targets * gain
             if nt:
-                r = t[:, :, 4:6] / anchors[:, None] 
+                r = t[:, :, 4:6] / anchor[:, None] 
                 j = torch.max(r, 1. / r).max(2)[0] < self.conf.anchor_t
                 t = t[j] 
                 gxy = t[:, 2:4]  
@@ -122,7 +125,7 @@ class MultiLoss(object):
             a = t[:, 6].long()  
             indices.append((b, a, gj.clamp_(0, gain[3] - 1), gi.clamp_(0, gain[2] - 1)))  
             tbox.append(torch.cat((gxy - gij, gwh), 1)) 
-            anch.append(anchors[a])  
+            anch.append(anchor[a])  
             tcls.append(c) 
         return tcls, tbox, indices, anch
 
@@ -173,6 +176,8 @@ class MultiLoss(object):
         bs = tobj.shape[0]  
         iou = sum(iou_list) / len(iou_list) if iou_list else 0
         return lbox, lobj, lcls, iou
+        # loss = lbox + lobj + lcls
+        # return loss * bs, torch.cat((lbox, lobj, lcls, loss)).detach()
 
 
 if __name__ == "__main__":
@@ -186,15 +191,9 @@ if __name__ == "__main__":
                         config.model_type,
                         config.num_classes,
                         config.strides).to(config.device)
-    net.is_training = True
     
-    x = torch.randn((3, 3, 416, 416)).to(config.device)
-    t = torch.Tensor([
-                    [0, 0, .2, .2, .2, .2],
-                    [1, 1, .1, .1, .1, .1],
-                    [1, 3, .2, .7, .5, .6],
-                    [1, 3, .1, .2, .3, .4],
-                    ]).to(config.device)
-    preds = net(x)
-    loss = loss_fn(preds, t, net)
+    res = torch.load("/home/liyang/codeLab/deepvac-yolov5/modules/res.pth")
+    pred = res["pred"]
+    target = res["target"]
+    loss = loss_fn(pred, target.to(pred[0].device), net)
     print("loss", loss)

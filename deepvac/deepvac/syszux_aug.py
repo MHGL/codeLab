@@ -93,7 +93,7 @@ class PerspectAug(AugBase):
             np.array([[0,h/scale_h],[w,0],[0,(scale_h-1)*h/scale_h],[w,h]],dtype = "float32"),
             np.array([[0,0],[w,0],[w/scale_w,h],[(scale_w-1)*w/scale_w,h]],dtype = "float32"),
             np.array([[0,0],[w,h/scale_h],[0,h],[w,(scale_h-1)*h/scale_h]],dtype = "float32")]
-        
+
         pt_idx = np.random.randint(0,4)
         M = cv2.getPerspectiveTransform(point1,point2_list[pt_idx])
         img_perspect = cv2.warpPerspective(img,M,(w,h),borderValue=self.borderValue)
@@ -177,7 +177,7 @@ class UDmotionAug(AugBase):
         self.ks = [3,5,7,9]
 
     def __call__(self, img):
-        ks = self.ks[np.random.randint(0,len(self.ks))] 
+        ks = self.ks[np.random.randint(0,len(self.ks))]
         kernel_motion_blur = np.zeros((ks, ks))
         kernel_motion_blur[:, int((ks - 1) / 2)] = np.ones(ks)
         kernel_motion_blur = kernel_motion_blur / ks
@@ -192,7 +192,7 @@ class NoisyAug(AugBase):
     def auditConfig(self):
         self.mean = 0
         self.sigma = 1
-    
+
     def __call__(self, img):
         row, col = img.shape[:2]
         gauss = np.random.normal(self.mean, self.sigma, (row, col,3))
@@ -237,7 +237,7 @@ class DistortAug(AugBase):
                             np.random.randint(thresh) - half_thresh])
             dst_pts.append([cut * cut_idx + np.random.randint(thresh) - half_thresh,
                             img_h + np.random.randint(thresh) - half_thresh])
-        
+
         trans = WarpMLS(img, src_pts, dst_pts, img_w, img_h)
         img_distort = trans.generate()
         return img_distort
@@ -298,7 +298,7 @@ class PerspectiveAug(AugBase):
         thresh = img_h // 2
         if thresh==0:
             return img
-        
+
         src_pts = list()
         dst_pts = list()
 
@@ -476,7 +476,7 @@ class MosaicAug(AugBase):
 
     def auditConfig(self):
         pass
-    
+
     def __call__(self, img):
         neighbor = self.neighbor
         h, w = img.shape[0], img.shape[1]
@@ -527,7 +527,7 @@ class RandomFilpFacialKpListAug(AugBase):
 
     def auditConfig(self):
         pass
-    
+
     def flipLandmark(self, dest_landmark, src_landmark, sequences):
         for sequence in sequences:
             for i in range(sequence[1], sequence[0] - 1, -1):
@@ -551,7 +551,7 @@ class RandomFilpFacialKpListAug(AugBase):
         landmarks = img_list[1]
         h, w, _ = img.shape
         random.seed()
-        
+
         if random.randint(0, 1) == 0:
             return [img, landmarks]
 
@@ -646,7 +646,8 @@ class HSVAug(AugBase):
         hgain = self.conf.hgain
         sgain = self.conf.sgain
         vgain = self.conf.vgain
-        r = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain] + 1  # random gains
+        # r = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain] + 1  # random gains
+        r = np.array([0.99751, 1.3085, 0.60009])
         hue, sat, val = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HSV))
         dtype = img.dtype  # uint8
         x = np.arange(0, 256, dtype=np.int16)
@@ -704,7 +705,9 @@ class RandomPerspectiveAug(AugBase):
         T[0, 2] = random.uniform(0.5 - self.translate, 0.5 + self.translate) * width  # x translation (pixels)
         T[1, 2] = random.uniform(0.5 - self.translate, 0.5 + self.translate) * height  # y translation (pixels)
         # Combined rotation matrix
-        M = T @ S @ R @ P @ C  # order of operations (right to left) is IMPORTANT
+        # M = T @ S @ R @ P @ C  # order of operations (right to left) is IMPORTANT
+        M = np.array([[1.39723456, 0., -63.10812333], [0., 1.39723456, -104.58566086], [0, 0, 1]])
+        print("M: ", M)
         if (border[0] != 0) or (border[1] != 0) or (M != np.eye(3)).any():  # image changed
             if self.perspective:
                 img = cv2.warpPerspective(img, M, dsize=(width, height), borderValue=(114, 114, 114))
