@@ -74,13 +74,42 @@ class Yolov5Detection(Deepvac):
         pred = torch.stack([pred[i] for i in idxs], dim=0)
         return pred
 
-    def __call__(self, image):
-        image = cv2.imread(image, 1)
+    def _plot_rectangle(self, img, pred, file_path):
+        save_dir = "output/detect"
+        file_name = file_path.split('/')[-1]
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        n, c, h, w = img.shape
+        image = cv2.imread(file_path)
+        h0, w0, c0 = image.shape
+
+        if not len(pred):
+            cv2.imwrite(os.path.join(save_dir, file_name), image)
+            return
+
+        for det in pred:
+            coord = det[:4]
+            gain = min(h / h0, w / w0)
+            pad = (w - w0 * gain) / 2, (h - h0 * gain) / 2
+            print(coord)
+            coord[[0, 2]] -= pad[0]
+            coord[[1, 3]] -= pad[1]
+            coord /= gain
+            coord = [int(x.item()) for x in coord]
+            if (max(coord) > max(h0, w0)) or min(coord) < 0:
+                continue
+            cv2.rectangle(image, (coord[0], coord[1]), (coord[2], coord[3]), (0, 0, 255), 2)
+            cv2.imwrite(os.path.join(save_dir, file_name), image)
+
+    def __call__(self, file_path):
+        image = cv2.imread(file_path, 1)
         img = self._image_process(image)
         with torch.no_grad():
             output = self.net(img)
-            print(output.shape)
         pred = self._post_process(output)
+        if self.conf.test.plot:
+            self._plot_rectangle(img, pred, file_path)
         # export torchscript
         # self.exportTorchViaScript()
         # if not pred.size(0):
@@ -91,13 +120,17 @@ class Yolov5Detection(Deepvac):
 
 
 if __name__ == "__main__":
+    import os
     import sys
-    image = sys.argv[1]
+    images = sys.argv[1]
     pth = sys.argv[2]
 
     from config import config
     config.model_path = pth
 
     det = Yolov5Detection(config)
-    res = det(image)
-    print(res)
+    for fn in os.listdir(images):
+        print("fn: ", fn)
+        fp = os.path.join(images, fn)
+        res = det(fp)
+        print(res)
