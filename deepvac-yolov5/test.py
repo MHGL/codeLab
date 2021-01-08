@@ -106,12 +106,12 @@ class Yolov5Detection(Deepvac):
         image = cv2.imread(file_path, 1)
         img = self._image_process(image)
         with torch.no_grad():
-            output = self.net(img)
+            output = self.net(img)[0]
         pred = self._post_process(output)
         if self.conf.test.plot:
             self._plot_rectangle(img, pred, file_path)
         # export torchscript
-        # self.exportTorchViaScript()
+        self.exportTorchViaScript()
         # if not pred.size(0):
             # return ['None'], torch.Tensor([0])
         scores = pred[:, -2]
@@ -134,3 +134,4 @@ if __name__ == "__main__":
         fp = os.path.join(images, fn)
         res = det(fp)
         print(res)
+        break

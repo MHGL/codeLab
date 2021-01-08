@@ -3,7 +3,7 @@ import json
 import torch
 from torch import nn, Tensor
 from collections import OrderedDict
-from typing import List, Dict, Optional
+from typing import List, Dict, Tuple, Optional
 
 from .model_base import *
 from .utils_anchor import AnchorGenerator
@@ -146,11 +146,11 @@ class YoloV5(nn.Module):
         self.strides = strides
         self.head = Detect(out_channels, self.anchor_generator.anchor_grids, num_classes)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         features = self.backbone(x)
         head_outputs = self.head(features)
         if self.is_training:
-            return head_outputs
+            return (head_outputs[0], head_outputs[1], head_outputs[2])
         anchors_tuple = self.anchor_generator(features)
         N, _, _, _, K = head_outputs[0].shape
         all_pred_logits: List[Tensor] = []
@@ -161,7 +161,7 @@ class YoloV5(nn.Module):
         preds = torch.sigmoid(preds)
         preds[..., 0:2] = (preds[..., 0:2] * 2. + anchors_tuple[0]) * anchors_tuple[1]
         preds[..., 2:4] = (preds[..., 2:4] * 2) ** 2 * anchors_tuple[2]
-        return preds
+        return (preds, preds, preds)
 
 
 def parse_model(model_dict, in_channels=3):

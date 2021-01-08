@@ -42,7 +42,7 @@ config.strides = [8, 16, 32]
 config.model_type = "yolov5l"
 config.model_file = "modules/yolo.json"
 config.model_path = "output/yolov5l_nc4.pkl"
-# config.script_model_dir = f"output/{config.model_type}.torchscript.pt"
+config.script_model_dir = f"output/{config.model_type}.torchscript.pt"
 # if you want to export model to torchscript, make model.is_training = False first;
 
 # # # loss # # #
