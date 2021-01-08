@@ -9,6 +9,7 @@ import time
 import subprocess
 import tempfile
 from enum import Enum
+from types import FunctionType
 from .syszux_annotation import *
 from .syszux_log import LOG,getCurrentGitBranch
 from .syszux_helper import AverageMeter
@@ -41,13 +42,13 @@ class Deepvac(object):
         self.branch = getCurrentGitBranch()
         if self.branch is None:
             LOG.logE('According to deepvac standard, you must working in a git repo.', exit=True)
-        
+
         if len(self.branch) < 6:
             LOG.logE('According to deepvac standard, your git branch name is too short: {}'.format(self.branch), exit=True)
 
         if self.branch.startswith('LTS_'):
             return
-        
+
         if self.branch.startswith('PROTO_'):
             return
 
@@ -82,7 +83,7 @@ class Deepvac(object):
     def setInput(self, input):
         if not isinstance(input, list):
             input = [input]
- 
+
         self.input_output['input'].extend(input)
         self.input_output['output'].clear()
 
@@ -115,7 +116,7 @@ class Deepvac(object):
         self.loadStateDict()
         #just print model parameters info
         self._parametersInfo()
-    
+
     def initNetPost(self):
         self.xb = torch.Tensor().to(self.device)
         self.sample = None
@@ -179,13 +180,13 @@ class Deepvac(object):
     def __call__(self, input=None):
         if not self.state_dict:
             LOG.logE("self.state_dict not initialized, cannot do predict.", exit=True)
-        
+
         if input:
             self.setInput(input)
 
         with torch.no_grad():
             self.process()
-            
+
         return self.getOutput()
 
     def exportTorchViaTrace(self, sample=None, output_trace_file=None):
@@ -196,7 +197,7 @@ class Deepvac(object):
 
         if sample is not None:
             self.sample = sample
-        
+
         if output_trace_file is None:
             output_trace_file = self.conf.trace_model_dir
 
@@ -220,7 +221,7 @@ class Deepvac(object):
             ts.save(output_script_file)
 
         LOG.logI("config.script_model_dir found, save to {}...".format(output_script_file))
-    
+
     def exportNCNN(self, output_ncnn_file=None):
         if not self.conf.ncnn_model_dir:
             return
@@ -237,13 +238,13 @@ class Deepvac(object):
             from onnxsim import simplify
         except:
             LOG.logE("You must install onnx and onnxsim package if you want to convert pytorch to ncnn.")
-        
+
         if not self.conf.onnx_model_dir:
             f = tempfile.NamedTemporaryFile()
             self.conf.onnx_model_dir = f.name
 
         self.exportONNX()
-        
+
         cmd = self.conf.onnx2ncnn + " " + self.conf.onnx_model_dir + " " + self.conf.ncnn_arch_dir + " " + output_ncnn_file
         pd = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if pd.stderr.read() != b"":
@@ -257,7 +258,7 @@ class Deepvac(object):
             subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if pd.stderr.read() != b"":
                 LOG.logE(pd.stderr.read() + b". we can't guarantee generate model is right")
-        
+
         LOG.logI("Pytorch model convert to NCNN model succeed, save ncnn param file in {}, save ncnn bin file in {}".format(self.conf.ncnn_arch_dir, output_ncnn_file))
 
     def exportCoreML(self, output_coreml_file=None):
@@ -375,8 +376,8 @@ class DeepvacTrain(Deepvac):
 
         self.output_dir = '{}/{}'.format(self.conf.output_dir, self.branch)
         LOG.logI('model save dir: {}'.format(self.output_dir))
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+        #for DDP race condition
+        os.makedirs(self.output_dir, exist_ok=True)
 
     def initSummaryWriter(self):
         event_dir = "{}/{}".format(self.conf.log_dir, self.branch)
@@ -392,7 +393,7 @@ class DeepvacTrain(Deepvac):
             LOG.logI('Tensorboard at {} '.format(url))
         except Exception as e:
             LOG.logE(e.msg)
-        
+
     def initCriterion(self):
         self.criterion = torch.nn.CrossEntropyLoss()
         LOG.logW("You should reimplement initCriterion() to initialize self.criterion, unless CrossEntropyLoss() is exactly what you need")
@@ -402,8 +403,8 @@ class DeepvacTrain(Deepvac):
             LOG.logI('Omit the checkpoint file since not specified...')
             return
         LOG.logI('Load checkpoint from {} folder'.format(self.output_dir))
-        self.net.load_state_dict(torch.load(self.output_dir+'/model:{}'.format(self.conf.checkpoint_suffix), map_location=self.device))
-        state_dict = torch.load(self.output_dir+'/checkpoint:{}'.format(self.conf.checkpoint_suffix), map_location=self.device)
+        self.net.load_state_dict(torch.load(self.output_dir+'/model__{}'.format(self.conf.checkpoint_suffix), map_location=self.device))
+        state_dict = torch.load(self.output_dir+'/checkpoint__{}'.format(self.conf.checkpoint_suffix), map_location=self.device)
         self.optimizer.load_state_dict(state_dict['optimizer'])
         if self.scheduler:
             self.scheduler.load_state_dict(state_dict['scheduler'])
@@ -412,6 +413,9 @@ class DeepvacTrain(Deepvac):
     def initScheduler(self):
         if isinstance(self.conf.lr_step, list):
             self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, self.conf.lr_step,self.conf.lr_factor)
+        elif isinstance(self.conf.lr_step, FunctionType):
+            print("cosine *******************************************************************************")
+            self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=self.conf.lr_step)
         else:
             self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, self.conf.lr_step,self.conf.lr_factor)
         LOG.logW("You should reimplement initScheduler() to initialize self.scheduler, unless lr_scheduler.StepLR() or lr_scheduler.MultiStepLR() is exactly what you need")
@@ -443,7 +447,7 @@ class DeepvacTrain(Deepvac):
         )
         for group in self.optimizer.param_groups:
             group.setdefault('initial_lr', group['lr'])
-    
+
     def initRmspropOptimizer(self):
         self.optimizer = optim.RMSprop(
             self.net.parameters(),
@@ -453,13 +457,13 @@ class DeepvacTrain(Deepvac):
             # alpha=self.conf.rmsprop_alpha,
             # centered=self.conf.rmsprop_centered
         )
-    
+
     def addScalar(self, tag, value, step):
         self.writer.add_scalar(tag, value, step)
-    
+
     def addImage(self, tag, image, step):
         self.writer.add_image(tag, image, step)
-    
+
     @syszux_once
     def addGraph(self, input):
         self.writer.add_graph(self.net, input)
@@ -474,6 +478,7 @@ class DeepvacTrain(Deepvac):
         self.exportTorchViaTrace()
         #compile pytorch state dict to TorchScript
         self.exportTorchViaScript()
+        self.setTrainContext()
 
     def earlyIter(self):
         start = time.time()
@@ -492,7 +497,11 @@ class DeepvacTrain(Deepvac):
         pass
 
     def postIter(self):
-        pass
+        if self.is_val:
+            return
+        if self.step in self.save_list:
+            self.processVal()
+            self.setTrainContext()
 
     def preEpoch(self):
         pass
@@ -510,7 +519,9 @@ class DeepvacTrain(Deepvac):
         self.loss.backward()
 
     def doOptimize(self):
-        self.optimizer.step()
+        if self.iter % self.conf.accumulate == 0:
+            self.optimizer.step()
+            self.optimizer.zero_grad()
 
     def doLog(self):
         if self.step % self.conf.log_every != 0:
@@ -522,14 +533,14 @@ class DeepvacTrain(Deepvac):
         LOG.logI('{}: [{}][{}/{}] [Loss:{}  Lr:{}]'.format(self.phase, self.epoch, self.step, self.loader_len,self.loss.item(),self.optimizer.param_groups[0]['lr']))
 
     def saveState(self, current_time):
-        file_partial_name = '{}_acc:{}_epoch:{}_step:{}_lr:{}'.format(current_time, self.accuracy, self.epoch, self.step, self.optimizer.param_groups[0]['lr'])
-        state_file = '{}/model:{}.pth'.format(self.output_dir, file_partial_name)
-        checkpoint_file = '{}/checkpoint:{}.pth'.format(self.output_dir, file_partial_name)
-        output_trace_file = '{}/trace:{}.pt'.format(self.output_dir, file_partial_name)
-        output_script_file = '{}/script:{}.pt'.format(self.output_dir, file_partial_name)
-        output_onnx_file = '{}/onnx:{}.onnx'.format(self.output_dir, file_partial_name)
-        output_ncnn_file = '{}/ncnn:{}.bin'.format(self.output_dir, file_partial_name)
-        output_coreml_file = '{}/coreml:{}.mlmodel'.format(self.output_dir, file_partial_name)
+        file_partial_name = '{}__acc_{}__epoch_{}__step_{}__lr_{}'.format(current_time, self.accuracy, self.epoch, self.step, self.optimizer.param_groups[0]['lr'])
+        state_file = '{}/model__{}.pth'.format(self.output_dir, file_partial_name)
+        checkpoint_file = '{}/checkpoint__{}.pth'.format(self.output_dir, file_partial_name)
+        output_trace_file = '{}/trace__{}.pt'.format(self.output_dir, file_partial_name)
+        output_script_file = '{}/script__{}.pt'.format(self.output_dir, file_partial_name)
+        output_onnx_file = '{}/onnx__{}.onnx'.format(self.output_dir, file_partial_name)
+        output_ncnn_file = '{}/ncnn__{}.bin'.format(self.output_dir, file_partial_name)
+        output_coreml_file = '{}/coreml__{}.mlmodel'.format(self.output_dir, file_partial_name)
         #save state_dict
         torch.save(self.net.state_dict(), state_file)
         #save checkpoint
@@ -565,7 +576,7 @@ class DeepvacTrain(Deepvac):
         self.train_time.reset()
         self.load_data_time.reset()
         self.data_cpu2gpu_time.reset()
-        
+
         start = time.time()
         for i, (sample, target) in enumerate(self.loader):
             self.load_data_time.update(time.time() - start)
@@ -575,8 +586,7 @@ class DeepvacTrain(Deepvac):
             self.sample = sample
             self.preIter()
             self.earlyIter()
-            self.smokeTestForExport3rd()
-            self.optimizer.zero_grad()
+            # self.optimizer.zero_grad()
             self.doForward()
             self.doLoss()
             self.doBackward()
@@ -584,9 +594,8 @@ class DeepvacTrain(Deepvac):
             self.doLog()
             self.postIter()
             self.train_time.update(time.time() - start)
-            if (self.epoch % 10 == 0) and (self.step in self.save_list):
-                self.processVal()
-                self.setTrainContext()
+            if self.step == 0:
+                self.smokeTestForExport3rd()
             start = time.time()
 
         self.addScalar('{}/TrainTime(hours/epoch)'.format(self.phase), round(self.train_time.sum / 3600, 2), self.epoch)
@@ -650,7 +659,7 @@ class DeepvacDDP(DeepvacTrain):
 
         #os.environ["CUDA_VISIBLE_DEVICES"] = "{}".format(self.args.gpu)
         torch.cuda.set_device(self.args.gpu)
-            
+
     def initDDP(self):
         LOG.logI("Start dist.init_process_group {} {}@{} on {}".format(self.conf.dist_url, self.args.rank, self.conf.world_size - 1, self.args.gpu))
         dist.init_process_group(backend='nccl', init_method=self.conf.dist_url, world_size=self.conf.world_size, rank=self.args.rank)
@@ -661,7 +670,7 @@ class DeepvacDDP(DeepvacTrain):
     def initTrainContext(self):
         self.initDDP()
         super(DeepvacDDP,self).initTrainContext()
-    
+
     def initSummaryWriter(self):
         if self.args.rank != 0:
             return
@@ -684,12 +693,12 @@ class DeepvacDDP(DeepvacTrain):
         if self.args.rank != 0:
             return
         super(DeepvacDDP, self).addScalar(tag, value, step)
-    
+
     def addImage(self, tag, image, step):
         if self.args.rank != 0:
             return
         super(DeepvacDDP, self).addImage(tag, image, step)
-        
+
     @syszux_once
     def addGraph(self, input):
         if self.args.rank != 0:

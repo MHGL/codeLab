@@ -26,6 +26,7 @@ config.world_size = 1
 
 ## ------------------ optimizer  ------------------
 config.lr = 0.01
+config.accumulate = 1
 config.lr_step = None
 config.lr_factor = 0.2703
 config.momentum = 0.9

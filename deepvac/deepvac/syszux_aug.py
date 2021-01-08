@@ -707,7 +707,6 @@ class RandomPerspectiveAug(AugBase):
         # Combined rotation matrix
         # M = T @ S @ R @ P @ C  # order of operations (right to left) is IMPORTANT
         M = np.array([[1.39723456, 0., -63.10812333], [0., 1.39723456, -104.58566086], [0, 0, 1]])
-        print("M: ", M)
         if (border[0] != 0) or (border[1] != 0) or (M != np.eye(3)).any():  # image changed
             if self.perspective:
                 img = cv2.warpPerspective(img, M, dsize=(width, height), borderValue=(114, 114, 114))

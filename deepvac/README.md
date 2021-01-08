@@ -241,7 +241,14 @@ class NSFWTrainDataset(ImageFolderWithTransformDataset):
 
  
 一个train.py的例子 [train.py](./examples/a_resnet_project/train.py)。            
-（DDP类待完善）     
+如果使用了DDP，那么除了继承自DeepvacDDP类外，还需要在initTrainLoader中初始化self.train_sampler：
+```python
+def initTrainLoader(self):
+    self.train_dataset = FaceDataset(self.conf)
+    self.train_sampler = torch.utils.data.distributed.DistributedSampler(self.train_dataset)
+    self.train_loader = DataLoader(self.train_dataset, batch_size=self.conf.train_batch_size, shuffle=(self.train_sampler is None), pin_memory=True, num_workers=self.conf.num_workers,sampler=self.train_sampler)
+
+```   
 
 ## 9. 编写测试脚本
 代码写在test.py文件中，继承syszux_deepvac模块中的Deepvac类。和train.py中的train/val的本质不同在于：
@@ -335,6 +342,12 @@ config.world_size = 3
 --rank <rank_idx>
 #从0开始
 --gpu <gpu_idx>
+```
+上述的配置表明我们将使用3个进程在3个CUDA设备上进行训练。配置完成后，我们在命令行手工启动3个进程：
+```bash
+python train.py --rank 0 --gpu 0
+python train.py --rank 1 --gpu 1
+python train.py --rank 2 --gpu 2
 ```
 
 ### 启用tensorboard服务  

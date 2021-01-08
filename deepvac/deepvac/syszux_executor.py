@@ -134,20 +134,6 @@ class OcrAugExecutor(Executor):
         self.addAugChain('ac1', ac1, 0.2)
         self.addAugChain('ac2', ac2, 0.9)
 
-class YoloAugExecutor(Executor):
-    def __init__(self, deepvac_config):
-        super(YoloAugExecutor, self).__init__(deepvac_config)
-        self.aug_chain = AugChain("HSVAug || RandomPerspectiveAug || FlipAug", deepvac_config)
-
-    def __call__(self, img, target):
-        for op in self.aug_chain.op_list:
-            res = op(img, target)
-            if res:
-                img, target = res
-                print(str(op), target)
-        return img, target
-
-
 if __name__ == "__main__":
     x = Chain("RandomColorJitterAug@0.3 => MosaicAug@0.8 => MotionAug ")
     print(x.op_sym_list)

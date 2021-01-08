@@ -9,19 +9,32 @@
 
 import sys
 sys.path.append("../deepvac/")
+import math
 
 from deepvac.syszux_config import *
 
 
+def one_cycle(y1=0.0, y2=1.0, steps=100):
+    return lambda x: ((1 - math.cos(x * math.pi / steps)) / 2) * (y2 - y1) + y1
+
 # # # config # # #
 config.save_num = 1
 config.epoch_num = 1500
-config.lr = 0.01
-config.lr_step = 1000
+config.disable_git = False
+config.nbs = 64  # nominal batch size
+config.accumulate = max(round(config.nbs / config.train.batch_size), 1)
+# optimizer
+config.lr0 = 0.01
+config.lrf = 0.2
+config.lr_step = one_cycle(1, config.lrf, config.epoch_num)
 config.momentum = 0.937
-config.lr_factor = 0.1
-config.nesterov = False
-config.weight_decay = 5e-4
+config.nesterov = True
+config.weight_decay = 5e-4  # hyp['weight_decay'] *= total_batch_size * accumulate / nbs
+# warmup
+config.warmup_epochs = 3.0
+config.warmup_bias_lr = 0.1
+config.warmup_momentum = 0.8
+# model
 config.device = 'cuda'
 config.img_size = 416
 config.num_classes = 4
@@ -36,9 +49,9 @@ config.model_path = "output/yolov5l_nc4.pkl"
 config.loss = AttrDict()
 config.loss.gr = 1.0  # iou loss ratio (obj_loss = 1.0 or iou)
 config.loss.box = 0.05
-config.loss.cls = 0.025
+config.loss.cls = 0.00125  # hyp['cls'] *= nc / 80. origin=0.025
 config.loss.cls_pw = 1
-config.loss.obj = 1
+config.loss.obj = 0.4225  # hyp['obj'] *= imgsz ** 2 / 640. ** 2 * 3. / nl
 config.loss.obj_pw = 1
 config.loss.iou_t = 0.2
 config.loss.anchor_t = 4
@@ -65,8 +78,8 @@ config.train.shuffle = True
 config.train.batch_size = 3
 config.train.augment = config.aug
 config.train.img_size = config.img_size
-config.train.root = "/gemfield/hostpv/PornNewDataset/test"
-config.train.annotation = "/gemfield/hostpv/PornNewDataset/test.json"
+config.train.root = "/home/liyang/ai05/PornNewDataset/test"
+config.train.annotation = "/home/liyang/ai05/PornNewDataset/test.json"
 
 # # # val # # #
 config.val = AttrDict()
@@ -74,8 +87,8 @@ config.val.shuffle = False
 config.val.batch_size = 9
 config.val.augment = config.aug
 config.val.img_size = config.img_size
-config.val.root = "/gemfield/hostpv/PornNewDataset/test"
-config.val.annotation = "/gemfield/hostpv/PornNewDataset/test.json"
+config.val.root = "/home/liyang/ai05/PornNewDataset/test"
+config.val.annotation = "/home/liyang/ai05/PornNewDataset/test.json"
 
 # # # test # # #
 config.test = AttrDict()
